@@ -1,0 +1,15 @@
+artifact_uri: file:///home/mikygetyos/Documents/My_Projects/NYC-Taxi-Duration/notebooks-exp-tracking/exp-tracking-homework/mlruns/0/9614447302414642ba3705f904c6345e/artifacts
+end_time: 1685655045181
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 9614447302414642ba3705f904c6345e
+run_name: delicate-lark-263
+run_uuid: 9614447302414642ba3705f904c6345e
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1685655044577
+status: 4
+tags: []
+user_id: mikygetyos
