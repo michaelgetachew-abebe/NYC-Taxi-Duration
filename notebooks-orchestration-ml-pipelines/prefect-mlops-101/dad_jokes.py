@@ -1,13 +1,13 @@
 import config
 import httpx
-from prefect import flow
+from prefect import flow, task
 
-@task
+@task(retries=4, retry_delay_seconds=0.1, log_prints=True)
 def pull_dad_jokes():
     api_url = "https://api.api-ninjas.com/v1/dadjokes?limit="
-    response = httpx.get("https://api.api-ninjas.com/v1/dadjokes?limit=", headers={'X-Api-Key': config.api_key}).json()["joke"]
+    response = httpx.get("https://api.api-ninjas.com/v1/dadjokes?limit=2", headers={'X-Api-Key': config.api_key}).json()[0]
 
-    return response
+    print(response["joke"])
 
 @flow
 def make_me_laugh():
