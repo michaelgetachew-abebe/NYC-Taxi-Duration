@@ -10,22 +10,27 @@ import mlflow
 import xgboost as xgb
 from prefect import flow, task
 
+
 def read_data(filename: str) -> pd.DataFrame:
-    """Read data from filename in to a Dataframe"""
+    """Read data into DataFrame"""
     df = pd.read_parquet(filename)
 
     df.lpep_dropoff_datetime = pd.to_datetime(df.lpep_dropoff_datetime)
     df.lpep_pickup_datetime = pd.to_datetime(df.lpep_pickup_datetime)
 
+    df["duration"] = df.lpep_dropoff_datetime - df.lpep_pickup_datetime
+    df.duration = df.duration.apply(lambda td: td.total_seconds() / 60)
+
     df = df[(df.duration >= 1) & (df.duration <= 60)]
 
-    categorical = ['PULocationID', 'DOLocationID']
+    categorical = ["PULocationID", "DOLocationID"]
     df[categorical] = df[categorical].astype(str)
 
     return df
 
+
 def add_features(
-        df_train: pd.DataFrame, df_val: pd.DataFrame
+    df_train: pd.DataFrame, df_val: pd.DataFrame
 ) -> tuple(
     [
         scipy.sparse._csr.csr_matrix,
@@ -39,7 +44,7 @@ def add_features(
     df_train["PU_DO"] = df_train["PULocationID"] + "_" + df_train["DOLocationID"]
     df_val["PU_DO"] = df_val["PULocationID"] + "_" + df_val["DOLocationID"]
 
-    categorical = ["PU_DO"]
+    categorical = ["PU_DO"]  #'PULocationID', 'DOLocationID']
     numerical = ["trip_distance"]
 
     dv = DictVectorizer()
@@ -52,17 +57,18 @@ def add_features(
 
     y_train = df_train["duration"].values
     y_val = df_val["duration"].values
-
     return X_train, X_val, y_train, y_val, dv
 
+
 def train_best_model(
-        X_train: scipy.sparse._csr.csr_matrix,
-        X_val: scipy.sparse._csr.csr_matrix,
-        y_train: np.ndarray,
-        y_val: np.ndarray,
-        dv: sklearn.feature_extraction.DictVectorizer,
+    X_train: scipy.sparse._csr.csr_matrix,
+    X_val: scipy.sparse._csr.csr_matrix,
+    y_train: np.ndarray,
+    y_val: np.ndarray,
+    dv: sklearn.feature_extraction.DictVectorizer,
 ) -> None:
-    """Train a model with best hyper parameters and write everything out"""
+    """train a model with best hyperparams and write everything out"""
+
     with mlflow.start_run():
         train = xgb.DMatrix(X_train, label=y_train)
         valid = xgb.DMatrix(X_val, label=y_val)
@@ -95,5 +101,31 @@ def train_best_model(
         with open("models/preprocessor.b", "wb") as f_out:
             pickle.dump(dv, f_out)
         mlflow.log_artifact("models/preprocessor.b", artifact_path="preprocessor")
+
         mlflow.xgboost.log_model(booster, artifact_path="models_mlflow")
     return None
+
+
+def main_flow(
+    train_path: str = "./data/green_tripdata_2021-01.parquet",
+    val_path: str = "./data/green_tripdata_2021-02.parquet",
+) -> None:
+    """The main training pipeline"""
+
+    # MLflow settings
+    mlflow.set_tracking_uri("sqlite:///mlflow.db")
+    mlflow.set_experiment("nyc-taxi-experiment")
+
+    # Load
+    df_train = read_data(train_path)
+    df_val = read_data(val_path)
+
+    # Transform
+    X_train, X_val, y_train, y_val, dv = add_features(df_train, df_val)
+
+    # Train
+    train_best_model(X_train, X_val, y_train, y_val, dv)
+
+
+if __name__ == "__main__":
+    main_flow()
