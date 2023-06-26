@@ -1,0 +1,3 @@
+{
+  "main-flow": "deploy-production-ready-pipelines\\orchestrated_with_prefect.py:main_flow"
+}
